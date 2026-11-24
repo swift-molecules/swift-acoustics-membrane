@@ -18,7 +18,13 @@ let package = Package(
         .package(url: "https://github.com/swift-molecules/swift-acoustics.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-bessel.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-cardinal.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-angle.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-decay.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-density.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-frequency.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-numeric.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-space.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-wavenumber.git", branch: "main"),
     ],
     targets: [
         .target(
@@ -27,7 +33,13 @@ let package = Package(
                 .product(name: "Acoustics", package: "swift-acoustics"),
                 .product(name: "Bessel", package: "swift-bessel"),
                 .product(name: "Cardinal", package: "swift-cardinal"),
+                .product(name: "Angle", package: "swift-angle"),
+                .product(name: "Decay", package: "swift-decay"),
+                .product(name: "Density", package: "swift-density"),
+                .product(name: "Frequency", package: "swift-frequency"),
                 .product(name: "Numeric", package: "swift-numeric"),
+                .product(name: "Space", package: "swift-space"),
+                .product(name: "Wavenumber", package: "swift-wavenumber"),
             ]
         ),
         .testTarget(

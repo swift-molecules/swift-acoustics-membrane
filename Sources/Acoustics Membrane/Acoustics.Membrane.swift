@@ -3,12 +3,21 @@ internal import Numeric
 
 extension Acoustics {
     public struct Membrane: Hashable, Sendable {
-        public var radius: Double
+        public var radius: Length<Space.Physical, Double>
+        /// The pull per length of rim, in N/m. No atom holds this kind yet (a membrane's tension is not a stiffness,
+        /// though they share a dimension), so it is a scalar.
         public var tension: Double
-        public var density: Double
+        public var density: Density.Surface.Value<Double>
+        /// How much air moves with the head, as a pure number: the moved mass per area gains `load` × the air's
+        /// density / wavenumber.
         public var load: Double
 
-        public init(radius: Double, tension: Double, density: Double, load: Double = 0) {
+        public init(
+            radius: Length<Space.Physical, Double>,
+            tension: Double,
+            density: Density.Surface.Value<Double>,
+            load: Double = 0
+        ) {
             self.radius = radius
             self.tension = tension
             self.density = density
@@ -18,7 +27,7 @@ extension Acoustics {
 }
 
 extension Acoustics.Membrane {
-    public func modes(below frequency: Double, in air: Acoustics.Air = .room) -> [Mode] {
+    public func modes(below frequency: Frequency.Value<Double>, in air: Acoustics.Air = .room) -> [Mode] {
         var modes: [Mode] = []
         var diameters: UInt = 0
         while true {
@@ -50,28 +59,39 @@ extension Acoustics.Membrane {
         return modes
     }
 
-    public func wavenumber(of mode: Mode) -> Double { mode.zero / radius }
-
-    public func moved(by mode: Mode, in air: Acoustics.Air = .room) -> Double {
-        density + load * air.density / wavenumber(of: mode)
+    public func wavenumber(of mode: Mode) -> Wavenumber.Value<Double> {
+        Wavenumber.amount(mode.zero / radius.underlying)
     }
 
-    public func frequency(of mode: Mode, in air: Acoustics.Air = .room) -> Double {
-        let wavenumber = wavenumber(of: mode)
-        return wavenumber * (tension / moved(by: mode, in: air)).squareRoot() / (2 * Double.pi)
+    /// The mass per area that moves with a mode: the head's, and the air's load.
+    public func moved(by mode: Mode, in air: Acoustics.Air = .room) -> Density.Surface.Value<Double> {
+        Density.Surface.amount(density.underlying + load * air.density / wavenumber(of: mode).underlying)
     }
 
-    public func shape(of mode: Mode, at distance: Double) -> Double {
-        distance.magnitude > radius
+    public func frequency(of mode: Mode, in air: Acoustics.Air = .room) -> Frequency.Value<Double> {
+        let wavenumber = wavenumber(of: mode).underlying
+        return Frequency.hertz(
+            wavenumber * (tension / moved(by: mode, in: air).underlying).squareRoot() / (2 * Double.pi)
+        )
+    }
+
+    /// The mode's shape at a distance from the centre, where it is largest around the head: a pure number.
+    public func shape(of mode: Mode, at distance: Length<Space.Physical, Double>) -> Double {
+        let distance = distance.underlying
+        let radius = radius.underlying
+        return distance.magnitude > radius
             ? 0 : Bessel.First<Double>(order: mode.diameters).value(at: mode.zero * distance / radius)
     }
 
-    public func patch(of mode: Mode, across width: Double) -> Double {
-        let reach = wavenumber(of: mode) * width
+    /// How much of the mode a round patch of radius `width` feels against a point: a pure number.
+    public func patch(of mode: Mode, across width: Length<Space.Physical, Double>) -> Double {
+        let reach = wavenumber(of: mode).underlying * width.underlying
         return reach.magnitude < 1e-9 ? 1 : 2 * Bessel.First<Double>(order: 1).value(at: reach) / reach
     }
 
+    /// The integral of the squared shape over the head, in square metres.
     func square(of mode: Mode) -> Double {
+        let radius = radius.underlying
         let edge = Bessel.First<Double>(order: Cardinal(UInt(Int(clamping: mode.diameters)) + 1)).value(
             at: mode.zero
         )
@@ -79,23 +99,27 @@ extension Acoustics.Membrane {
             * (Int(clamping: mode.diameters) == 0 ? 1 : 0.5)
     }
 
-    public func mass(of mode: Mode, in air: Acoustics.Air = .room) -> Double {
-        moved(by: mode, in: air) * square(of: mode)
+    public func mass(of mode: Mode, in air: Acoustics.Air = .room) -> Mass.Value<Double> {
+        Mass.kilograms(moved(by: mode, in: air).underlying * square(of: mode))
     }
 
+    /// The integral of the squared slope of the shape over the head: a pure number.
     public func stretch(of mode: Mode) -> Double {
-        let wavenumber = wavenumber(of: mode)
+        let wavenumber = wavenumber(of: mode).underlying
         return wavenumber * wavenumber * square(of: mode)
     }
 
+    /// The far sound pressure times distance for a unit acceleration of the mode, in Pa·m per m/s² (kg/m), at
+    /// `angle` from straight above. No atom holds this kind, so it is a scalar.
     public func beam(
         of mode: Mode,
-        at frequency: Double,
-        tilted angle: Double,
+        at frequency: Frequency.Value<Double>,
+        tilted angle: Radian<Double>,
         in air: Acoustics.Air = .room
     ) -> Double {
-        let across = 2 * Double.pi * frequency / air.speed * Double.math.sin(angle)
-        let along = wavenumber(of: mode)
+        let radius = radius.underlying
+        let across = 2 * Double.pi * frequency.underlying / air.speed * Double.math.sin(angle.underlying)
+        let along = wavenumber(of: mode).underlying
         let order = UInt(Int(clamping: mode.diameters))
         var apart = along * along - across * across
         if apart.magnitude < 1e-9 * along * along { apart = 1e-9 * along * along }
@@ -104,20 +128,27 @@ extension Acoustics.Membrane {
             * Bessel.First<Double>(order: Cardinal(order)).value(at: across * radius) / apart
     }
 
-    public func radiated(by mode: Mode, at frequency: Double, in air: Acoustics.Air = .room) -> Double {
+    /// The decay a mode has from the sound it sends out alone.
+    public func radiated(
+        by mode: Mode,
+        at frequency: Frequency.Value<Double>,
+        in air: Acoustics.Air = .room
+    ) -> Decay.Value<Double> {
         let slices = 200
         var sum = 0.0
         var index = 0
         while index <= slices {
             let angle = Double.pi / 2 * Double(index) / Double(slices)
-            let beam = beam(of: mode, at: frequency, tilted: angle, in: air) / air.density
+            let beam = beam(of: mode, at: frequency, tilted: Angle.Radian.amount(angle), in: air) / air.density
             let edge = index == 0 || index == slices ? 0.5 : 1.0
             sum += edge * beam * beam * Double.math.sin(angle)
             index += 1
         }
         let around = Int(clamping: mode.diameters) == 0 ? 2 * Double.pi : Double.pi
-        let angular = 2 * Double.pi * frequency
-        return air.density * angular * angular * sum * (Double.pi / 2 / Double(slices)) * around
-            / (2 * air.speed * mass(of: mode, in: air))
+        let angular = 2 * Double.pi * frequency.underlying
+        return Decay.amount(
+            air.density * angular * angular * sum * (Double.pi / 2 / Double(slices)) * around
+                / (2 * air.speed * mass(of: mode, in: air).underlying)
+        )
     }
 }

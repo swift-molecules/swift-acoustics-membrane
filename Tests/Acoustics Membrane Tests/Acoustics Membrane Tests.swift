@@ -23,7 +23,7 @@ extension `Acoustics Tests`.Membrane {
         #expect(abs(first.zero - 2.404825557695773) < 1e-12)
         #expect(
             abs(
-                bare.frequency(of: first) - 2.404825557695773 * (3_000 / 0.25).squareRoot()
+                bare.frequency(of: first).underlying - 2.404825557695773 * (3_000 / 0.25).squareRoot()
                     / (2 * Double.pi * 0.3)
             ) < 1e-9
         )
@@ -35,7 +35,7 @@ extension `Acoustics Tests`.Membrane {
         let head = `Acoustics Tests`.Membrane.head
         let modes = head.modes(below: 600)
         func frequency(_ diameters: Cardinal, _ circles: Cardinal) -> Double {
-            head.frequency(of: modes.first { $0.diameters == diameters && $0.circles == circles }!)
+            head.frequency(of: modes.first { $0.diameters == diameters && $0.circles == circles }!).underlying
         }
         let principal = frequency(1, 1)
         #expect(abs(principal - 172) < 2)
@@ -49,12 +49,12 @@ extension `Acoustics Tests`.Membrane {
         for mode in head.modes(below: 500) {
             let rings = 4_000
             let sum = (0..<rings).reduce(0.0) { sum, ring in
-                let distance = (Double(ring) + 0.5) * head.radius / Double(rings)
-                let shape = head.shape(of: mode, at: distance)
-                return sum + shape * shape * distance * head.radius / Double(rings)
+                let distance = (Double(ring) + 0.5) * head.radius.underlying / Double(rings)
+                let shape = head.shape(of: mode, at: Space.Physical.metres(distance))
+                return sum + shape * shape * distance * head.radius.underlying / Double(rings)
             }
             let around = mode.diameters == 0 ? 2 * Double.pi : Double.pi
-            #expect(abs(head.mass(of: mode) / (head.moved(by: mode) * sum * around) - 1) < 1e-5)
+            #expect(abs(head.mass(of: mode).underlying / (head.moved(by: mode).underlying * sum * around) - 1) < 1e-5)
         }
     }
 
@@ -66,7 +66,7 @@ extension `Acoustics Tests`.Membrane {
             let mode = modes.first {
                 $0.diameters == Cardinal(diameters) && $0.circles == Cardinal(circles)
             }!
-            let ring = 6.908 / head.radiated(by: mode, at: head.frequency(of: mode))
+            let ring = 6.908 / head.radiated(by: mode, at: head.frequency(of: mode)).underlying
             #expect(ring > seconds / 2 && ring < seconds * 2)
         }
     }
