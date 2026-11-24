@@ -109,10 +109,4 @@ extension `Acoustics Tests`.Membrane {
         // a surface tension is a force per length of rim: kg m s⁻² / m
         #expect(D.of(Tension.Surface.self) * D.of(Measure<1, Space.Physical>.self) == D(length: 1, mass: 1, time: -2))
     }
-
-    @Test func `A tension given as a scalar is the same tension`() {
-        let typed = Acoustics.Membrane(radius: 0.3, tension: Tension.Surface.amount(3_000), density: 0.25)
-        let scalar = Acoustics.Membrane(radius: 0.3, tension: 3_000.0, density: 0.25)
-        #expect(typed == scalar)
-    }
 }

@@ -22,18 +22,6 @@ extension Acoustics {
             self.density = density
             self.load = load
         }
-
-        /// The tension as a scalar in newtons per metre, for the kettledrum in swift-instrument until it passes a
-        /// `Tension.Surface` (swift-institute/Issues#369); removed then.
-        @_disfavoredOverload
-        public init(
-            radius: Length<Space.Physical, Double>,
-            tension: Double,
-            density: Density.Surface.Value<Double>,
-            load: Double = 0
-        ) {
-            self.init(radius: radius, tension: Tension.Surface.amount(tension), density: density, load: load)
-        }
     }
 }
 
