@@ -7,4 +7,5 @@
 @_exported public import Frequency
 @_exported public import Numeric
 @_exported public import Space
+@_exported public import Tension
 @_exported public import Wavenumber

@@ -4,9 +4,8 @@ internal import Numeric
 extension Acoustics {
     public struct Membrane: Hashable, Sendable {
         public var radius: Length<Space.Physical, Double>
-        /// The pull per length of rim, in N/m. No atom holds this kind yet (a membrane's tension is not a stiffness,
-        /// though they share a dimension), so it is a scalar.
-        public var tension: Double
+        /// The pull per length of rim: a surface tension, not a stiffness, though they share a dimension.
+        public var tension: Tension.Surface.Value<Double>
         public var density: Density.Surface.Value<Double>
         /// How much air moves with the head, as a pure number: the moved mass per area gains `load` × the air's
         /// density / wavenumber.
@@ -14,7 +13,7 @@ extension Acoustics {
 
         public init(
             radius: Length<Space.Physical, Double>,
-            tension: Double,
+            tension: Tension.Surface.Value<Double>,
             density: Density.Surface.Value<Double>,
             load: Double = 0
         ) {
@@ -22,6 +21,18 @@ extension Acoustics {
             self.tension = tension
             self.density = density
             self.load = load
+        }
+
+        /// The tension as a scalar in newtons per metre, for the kettledrum in swift-instrument until it passes a
+        /// `Tension.Surface` (swift-institute/Issues#369); removed then.
+        @_disfavoredOverload
+        public init(
+            radius: Length<Space.Physical, Double>,
+            tension: Double,
+            density: Density.Surface.Value<Double>,
+            load: Double = 0
+        ) {
+            self.init(radius: radius, tension: Tension.Surface.amount(tension), density: density, load: load)
         }
     }
 }
@@ -71,7 +82,7 @@ extension Acoustics.Membrane {
     public func frequency(of mode: Mode, in air: Acoustics.Air = .room) -> Frequency.Value<Double> {
         let wavenumber = wavenumber(of: mode).underlying
         return Frequency.hertz(
-            wavenumber * (tension / moved(by: mode, in: air).underlying).squareRoot() / (2 * Double.pi)
+            wavenumber * (tension.underlying / moved(by: mode, in: air).underlying).squareRoot() / (2 * Double.pi)
         )
     }
 

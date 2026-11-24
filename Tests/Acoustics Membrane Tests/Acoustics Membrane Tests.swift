@@ -11,13 +11,13 @@ extension `Acoustics Tests` {
 extension `Acoustics Tests`.Membrane {
     fileprivate static let head = Acoustics.Membrane(
         radius: 0.32,
-        tension: 5_360,
+        tension: Tension.Surface.amount(5_360),
         density: 0.262,
         load: 3.95
     )
 
     @Test func `In a vacuum a mode sounds at its zero times the wave speed over the rim`() {
-        let bare = Acoustics.Membrane(radius: 0.3, tension: 3_000, density: 0.25)
+        let bare = Acoustics.Membrane(radius: 0.3, tension: Tension.Surface.amount(3_000), density: 0.25)
         let modes = bare.modes(below: 700)
         let first = modes.first { $0.diameters == 0 && $0.circles == 1 }!
         #expect(abs(first.zero - 2.404825557695773) < 1e-12)
@@ -95,5 +95,24 @@ extension `Acoustics Tests`.Membrane {
         let integral = 2 * Double.pi * radius * radius * Bessel.First<Double>(order: 1).value(at: mode.zero) / mode.zero
         let area = head.area(of: mode, at: head.frequency(of: mode), tilted: 0).underlying
         #expect(abs(area / integral - 1) < 1e-12)
+    }
+}
+
+extension `Acoustics Tests`.Membrane {
+    @Test func `The membrane's law balances its dimensions`() {
+        typealias D = Quantity.Dimension
+        // ω = k √(T / σ): a surface tension over a surface density, times a squared wavenumber, is a squared
+        // angular frequency
+        let wavenumber = D.of(Wavenumber.self)
+        let angular = D.of(Frequency.Angular.self)
+        #expect(D.of(Tension.Surface.self) / D.of(Density.Surface.self) * wavenumber * wavenumber == angular * angular)
+        // a surface tension is a force per length of rim: kg m s⁻² / m
+        #expect(D.of(Tension.Surface.self) * D.of(Measure<1, Space.Physical>.self) == D(length: 1, mass: 1, time: -2))
+    }
+
+    @Test func `A tension given as a scalar is the same tension`() {
+        let typed = Acoustics.Membrane(radius: 0.3, tension: Tension.Surface.amount(3_000), density: 0.25)
+        let scalar = Acoustics.Membrane(radius: 0.3, tension: 3_000.0, density: 0.25)
+        #expect(typed == scalar)
     }
 }
