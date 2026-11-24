@@ -78,13 +78,22 @@ extension `Acoustics Tests`.Membrane {
         let head = `Acoustics Tests`.Membrane.head
         let modes = head.modes(below: 3_000)
         for mode in modes where mode.diameters != 0 {
-            #expect(head.beam(of: mode, at: head.frequency(of: mode), tilted: 0) == 0)
+            #expect(head.area(of: mode, at: head.frequency(of: mode), tilted: 0) == 0)
         }
         let round = modes.first { $0.diameters == 0 && $0.circles == 1 }!
-        #expect(head.beam(of: round, at: 100, tilted: 0) != 0)
+        #expect(head.area(of: round, at: 100, tilted: 0) != 0)
         let coarse = modes.min { $0.zero < $1.zero }!
         let fine = modes.max { $0.zero < $1.zero }!
         #expect(head.patch(of: fine, across: 0.015).magnitude < head.patch(of: coarse, across: 0.015))
         #expect(head.patch(of: coarse, across: 0) == 1)
+    }
+
+    @Test func `Straight above, a mode without diameters shows the integral of its shape over the head`() {
+        let head = `Acoustics Tests`.Membrane.head
+        let mode = head.modes(below: 600).first { $0.diameters == 0 && $0.circles == 1 }!
+        let radius = head.radius.underlying
+        let integral = 2 * Double.pi * radius * radius * Bessel.First<Double>(order: 1).value(at: mode.zero) / mode.zero
+        let area = head.area(of: mode, at: head.frequency(of: mode), tilted: 0).underlying
+        #expect(abs(area / integral - 1) < 1e-12)
     }
 }

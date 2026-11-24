@@ -65,7 +65,7 @@ extension Acoustics.Membrane {
 
     /// The mass per area that moves with a mode: the head's, and the air's load.
     public func moved(by mode: Mode, in air: Acoustics.Air = .room) -> Density.Surface.Value<Double> {
-        Density.Surface.amount(density.underlying + load * air.density / wavenumber(of: mode).underlying)
+        Density.Surface.amount(density.underlying + load * air.density.underlying / wavenumber(of: mode).underlying)
     }
 
     public func frequency(of mode: Mode, in air: Acoustics.Air = .room) -> Frequency.Value<Double> {
@@ -109,23 +109,27 @@ extension Acoustics.Membrane {
         return wavenumber * wavenumber * square(of: mode)
     }
 
-    /// The far sound pressure times distance for a unit acceleration of the mode, in Pa·m per m/s² (kg/m), at
-    /// `angle` from straight above. No atom holds this kind, so it is a scalar.
-    public func beam(
+    /// The mode's area as the far field sees it at `angle` from straight above: the integral over the head of its
+    /// shape times e^(−i k·x), for the wavenumber k of sound leaving at that angle, in the direction around the head
+    /// where the mode is loudest. Far from a head set in a wall, sound pressure × distance is the air's density ×
+    /// this area × the mode's acceleration / 2π (Rayleigh's integral).
+    public func area(
         of mode: Mode,
         at frequency: Frequency.Value<Double>,
         tilted angle: Radian<Double>,
         in air: Acoustics.Air = .room
-    ) -> Double {
+    ) -> Area<Space.Physical>.Value<Double> {
         let radius = radius.underlying
-        let across = 2 * Double.pi * frequency.underlying / air.speed * Double.math.sin(angle.underlying)
+        let across = 2 * Double.pi * frequency.underlying / air.speed.underlying * Double.math.sin(angle.underlying)
         let along = wavenumber(of: mode).underlying
         let order = UInt(Int(clamping: mode.diameters))
         var apart = along * along - across * across
         if apart.magnitude < 1e-9 * along * along { apart = 1e-9 * along * along }
         let edge = Bessel.First<Double>(order: Cardinal(order + 1)).value(at: mode.zero)
-        return air.density * radius * along * edge
-            * Bessel.First<Double>(order: Cardinal(order)).value(at: across * radius) / apart
+        return Area<Space.Physical>.amount(
+            2 * Double.pi * radius * along * edge * Bessel.First<Double>(order: Cardinal(order)).value(at: across * radius)
+                / apart
+        )
     }
 
     /// The decay a mode has from the sound it sends out alone.
@@ -139,16 +143,18 @@ extension Acoustics.Membrane {
         var index = 0
         while index <= slices {
             let angle = Double.pi / 2 * Double(index) / Double(slices)
-            let beam = beam(of: mode, at: frequency, tilted: Angle.Radian.amount(angle), in: air) / air.density
+            let beam =
+                area(of: mode, at: frequency, tilted: Angle.Radian.amount(angle), in: air).underlying / (2 * Double.pi)
             let edge = index == 0 || index == slices ? 0.5 : 1.0
             sum += edge * beam * beam * Double.math.sin(angle)
             index += 1
         }
         let around = Int(clamping: mode.diameters) == 0 ? 2 * Double.pi : Double.pi
         let angular = 2 * Double.pi * frequency.underlying
+        let density = air.density.underlying
         return Decay.amount(
-            air.density * angular * angular * sum * (Double.pi / 2 / Double(slices)) * around
-                / (2 * air.speed * mass(of: mode, in: air).underlying)
+            density * angular * angular * sum * (Double.pi / 2 / Double(slices)) * around
+                / (2 * air.speed.underlying * mass(of: mode, in: air).underlying)
         )
     }
 }
